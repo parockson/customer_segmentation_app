@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+:root {
+    --canvas: #111513;
+    --surface: #1A201D;
+    --surface-raised: #202824;
+    --line: #303A35;
+    --text: #F1F3EF;
+    --muted: #A3ADA6;
+    --accent: #ED1944;
+    --green: #64D6A5;
+}
+
+html, body, [class*="css"] {
+    font-family: 'DM Sans', sans-serif;
+}
+
+[data-testid="stAppViewContainer"] {
+    background: var(--canvas);
+}
+
+[data-testid="stHeader"] {
+    background: rgba(17, 21, 19, 0.88);
+}
+
+[data-testid="stMainBlockContainer"] {
+    padding-top: 2.25rem;
+    padding-bottom: 3rem;
+}
+
+[data-testid="stSidebar"],
+[data-testid="collapsedControl"] {
+    display: none !important;
+}
+
+[data-testid="stMarkdownContainer"] h1 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 2.25rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--text);
+    padding-bottom: 0.5rem;
+    border-bottom: 3px solid var(--accent);
+    width: fit-content;
+    max-width: 100%;
+}
+
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(h1) + [data-testid="stElementContainer"] p {
+    margin-top: 0.15rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+h2, h3, h4 {
+    font-family: 'Manrope', sans-serif !important;
+    color: var(--text) !important;
+}
+
+[data-testid="stMetric"] {
+    min-height: 112px;
+    padding: 1rem 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-top: 2px solid #53625A;
+    border-radius: 6px;
+}
+
+[data-testid="stMetricLabel"] p {
+    color: var(--muted) !important;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+[data-testid="stMetricValue"] {
+    color: var(--text);
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.65rem;
+}
+
+[data-testid="stHorizontalBlock"] > div:first-child [data-testid="stMetric"] {
+    border-top-color: var(--green);
+}
+
+[data-testid="stTabs"] [role="tablist"] {
+    gap: 0.35rem;
+    border-bottom: 1px solid var(--line);
+}
+
+[data-testid="stTabs"] button[role="tab"] {
+    color: var(--muted);
+    border-radius: 4px 4px 0 0;
+    font-weight: 600;
+}
+
+[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+    color: var(--text);
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+}
+
+[data-testid="stTabs"] [data-testid="stMarkdownContainer"] p {
+    color: var(--muted);
+}
+
+[data-testid="stMultiSelect"] [data-baseweb="select"] > div,
+[data-testid="stDateInput"] [data-baseweb="input"] > div {
+    background: var(--surface-raised);
+    border-color: var(--line);
+    border-radius: 5px;
+}
+
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(h3) {
+    margin-top: 0.45rem;
+}
+
+[data-testid="stMultiSelect"] label,
+[data-testid="stDateInput"] label {
+    color: var(--muted) !important;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+[data-baseweb="tag"] {
+    background: #303A35;
+    color: var(--text);
+    border: 1px solid #46534B;
+    border-radius: 4px;
+}
+
+[data-testid="stMultiSelect"] [data-baseweb="tag"] {
+    background: #303A35 !important;
+    color: var(--text) !important;
+    border-color: #46534B !important;
+}
+
+[data-testid="stMultiSelect"] input,
+[data-testid="stDateInput"] input {
+    color: var(--text);
+}
+
+[data-testid="stPlotlyChart"] {
+    padding: 0.35rem 0;
+}
+
+[data-testid="stDataFrame"] {
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+[data-testid="stDivider"] {
+    border-color: var(--line);
+}
+
+@media (min-width: 701px) and (max-width: 1100px) {
+    [data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="column"] {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+    }
+
+    [data-testid="stMetric"] {
+        padding: 0.8rem 0.65rem;
+    }
+
+    [data-testid="stMetricValue"] {
+        font-size: 1.2rem;
+    }
+
+    [data-testid="stMetricLabel"] p {
+        font-size: 0.68rem;
+    }
+}
+
+@media (max-width: 700px) {
+    [data-testid="stMainBlockContainer"] {
+        padding: 1.25rem 1rem 2rem;
+    }
+
+    [data-testid="stMarkdownContainer"] h1 {
+        font-size: 1.65rem;
+    }
+
+    [data-testid="stMetric"] {
+        min-height: 96px;
+        padding: 0.75rem;
+    }
+}
