@@ -2,6 +2,7 @@ from datetime import datetime
 
 import pandas as pd
 import numpy as np
+from pathlib import Path
 
 
 # ── Column alias registries ────────────────────────────────────────────────────
@@ -23,7 +24,7 @@ def _normalise_key(col: str) -> str:
     return col.strip().lower().replace(" ", "").replace("_", "")
 
 
-def load_data(filepath="data/clients_dataset.xlsx"):
+def load_data(filepath=None):
     """
     Loads all sheets (Retail, Corporate, SMB) from the Excel workbook.
 
@@ -41,6 +42,16 @@ def load_data(filepath="data/clients_dataset.xlsx"):
         BusinessCategory – Category
         BizSegment       – tagged from sheet name (Retail / Corporate / SMB)
     """
+    if filepath is None:
+        filepath = Path(__file__).resolve().parent.parent / "data" / "clients_dataset.xlsx"
+    filepath = Path(filepath)
+    if filepath.exists():
+        with filepath.open("rb") as workbook_file:
+            if workbook_file.read(100).startswith(b"version https://git-lfs.github.com/spec/v1"):
+                raise RuntimeError(
+                    f"{filepath} is a Git LFS pointer, not the workbook. Run `git lfs pull` in the repository."
+                )
+
     excel_file = pd.ExcelFile(filepath)
 
     segment_dfs = []

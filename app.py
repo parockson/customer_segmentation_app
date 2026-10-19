@@ -14,12 +14,13 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-css_path = Path("assets/styles.css")
+PROJECT_DIR = Path(__file__).resolve().parent
+css_path = PROJECT_DIR / "assets" / "styles.css"
 if css_path.exists():
     st.markdown(f"<style>{css_path.read_text()}</style>", unsafe_allow_html=True)
 
 
-DATA_PATH = Path("data/clients_dataset.xlsx")
+DATA_PATH = PROJECT_DIR / "data" / "clients_dataset.xlsx"
 
 
 @st.cache_data
@@ -31,9 +32,22 @@ try:
     source_stat = DATA_PATH.stat()
     df = get_dataset(source_stat.st_mtime_ns, source_stat.st_size)
 except Exception as error:
+    if not DATA_PATH.exists():
+        load_guidance = f"Expected workbook at `{DATA_PATH}`."
+    else:
+        try:
+            with DATA_PATH.open("rb") as workbook_file:
+                is_lfs_pointer = workbook_file.read(100).startswith(b"version https://git-lfs.github.com/spec/v1")
+        except OSError:
+            is_lfs_pointer = False
+        load_guidance = (
+            "The file is an unhydrated Git LFS pointer. Run `git lfs pull` in the repository."
+            if is_lfs_pointer
+            else f"Workbook found at `{DATA_PATH}`, but could not be read."
+        )
     st.error(
-        "Could not load `data/clients_dataset.xlsx`. "
-        f"Check that the workbook exists and contains the expected sheets. Error: {error}"
+        "Could not load the customer workbook. "
+        f"{load_guidance} Error: {error}"
     )
     st.stop()
 
