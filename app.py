@@ -510,22 +510,6 @@ with volume_col:
         hide_index=True,
     )
 
-win_back_candidates = cust_df[
-    active_mask & cust_df["Days_Since_Last_Success"].between(61, 90)
-].nlargest(10, "Total_Value")
-win_back_columns = [
-    "CustomerID", "Name", "BizSegment", "Days_Since_Last_Success", "Success_Count", "Total_Value", "LastTransaction"
-]
-st.subheader("Top 10 win-back candidates")
-st.caption("Currently active, 61–90 days since last transaction, ranked by value. This workbook has no transaction history to confirm a prior return.")
-st.dataframe(
-    win_back_candidates[win_back_columns].rename(
-        columns={"Days_Since_Last_Success": "Days Since Last Transaction", "Success_Count": "Total Volume", "Total_Value": "Total Value"}
-    ),
-    use_container_width=True,
-    hide_index=True,
-)
-
 not_active = cust_df[~active_mask].nlargest(10, "Total_Value")
 st.subheader("Top 10 customers who are not active")
 st.dataframe(
