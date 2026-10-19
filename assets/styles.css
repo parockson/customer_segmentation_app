@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
 
 :root {
-    --canvas: #111513;
-    --surface: #1A201D;
-    --surface-raised: #202824;
-    --line: #303A35;
-    --text: #F1F3EF;
-    --muted: #A3ADA6;
+    --canvas: #F4F7F3;
+    --surface: #FFFFFF;
+    --surface-raised: #F8FAF8;
+    --line: #DCE4DE;
+    --text: #1D2922;
+    --muted: #65736A;
     --accent: #ED1944;
-    --green: #64D6A5;
+    --green: #17845A;
 }
 
 html, body, [class*="css"] {
@@ -20,7 +20,7 @@ html, body, [class*="css"] {
 }
 
 [data-testid="stHeader"] {
-    background: rgba(17, 21, 19, 0.88);
+    background: rgba(244, 247, 243, 0.92);
 }
 
 [data-testid="stMainBlockContainer"] {
@@ -57,12 +57,19 @@ h2, h3, h4 {
 }
 
 [data-testid="stMetric"] {
-    min-height: 112px;
+    min-height: 116px;
     padding: 1rem 1.1rem;
-    background: var(--surface);
+    background: linear-gradient(145deg, #FFFFFF 0%, #FBFDFC 68%, #F1F7F3 100%);
     border: 1px solid var(--line);
-    border-top: 2px solid #53625A;
-    border-radius: 6px;
+    border-top: 4px solid #A5B4AA;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(29, 41, 34, 0.07);
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+[data-testid="stMetric"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 19px rgba(29, 41, 34, 0.11);
 }
 
 [data-testid="stMetricLabel"] p {
@@ -77,8 +84,28 @@ h2, h3, h4 {
     font-size: 1.65rem;
 }
 
-[data-testid="stHorizontalBlock"] > div:first-child [data-testid="stMetric"] {
-    border-top-color: var(--green);
+[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]:nth-child(1) [data-testid="stMetric"] {
+    border-top-color: #17845A;
+}
+
+[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]:nth-child(2) [data-testid="stMetric"] {
+    border-top-color: #4778A8;
+    background: linear-gradient(145deg, #FFFFFF 0%, #FCFDFE 68%, #F0F5FA 100%);
+}
+
+[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]:nth-child(3) [data-testid="stMetric"] {
+    border-top-color: #D78A2F;
+    background: linear-gradient(145deg, #FFFFFF 0%, #FFFDFC 68%, #FBF5EB 100%);
+}
+
+[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]:nth-child(4) [data-testid="stMetric"] {
+    border-top-color: #178F99;
+    background: linear-gradient(145deg, #FFFFFF 0%, #FBFEFE 68%, #ECF7F7 100%);
+}
+
+[data-testid="stHorizontalBlock"]:has([data-testid="stMetric"]) > [data-testid="stColumn"]:nth-child(5) [data-testid="stMetric"] {
+    border-top-color: #D65B54;
+    background: linear-gradient(145deg, #FFFFFF 0%, #FFFCFC 68%, #FBF0EF 100%);
 }
 
 [data-testid="stTabs"] [role="tablist"] {
@@ -104,9 +131,9 @@ h2, h3, h4 {
 
 [data-testid="stMultiSelect"] [data-baseweb="select"] > div,
 [data-testid="stDateInput"] [data-baseweb="input"] > div {
-    background: var(--surface-raised);
+    background: var(--surface);
     border-color: var(--line);
-    border-radius: 5px;
+    border-radius: 6px;
 }
 
 [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(h3) {
@@ -121,16 +148,16 @@ h2, h3, h4 {
 }
 
 [data-baseweb="tag"] {
-    background: #303A35;
+    background: #E8F2EC;
     color: var(--text);
-    border: 1px solid #46534B;
+    border: 1px solid #C7DCCF;
     border-radius: 4px;
 }
 
 [data-testid="stMultiSelect"] [data-baseweb="tag"] {
-    background: #303A35 !important;
+    background: #E8F2EC !important;
     color: var(--text) !important;
-    border-color: #46534B !important;
+    border-color: #C7DCCF !important;
 }
 
 [data-testid="stMultiSelect"] input,
@@ -138,14 +165,22 @@ h2, h3, h4 {
     color: var(--text);
 }
 
+[data-testid="stPlotlyChart"] > div {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 3px 14px rgba(29, 41, 34, 0.035);
+}
+
 [data-testid="stPlotlyChart"] {
-    padding: 0.35rem 0;
+    padding: 0.2rem 0;
 }
 
 [data-testid="stDataFrame"] {
     border: 1px solid var(--line);
-    border-radius: 5px;
+    border-radius: 8px;
     overflow: hidden;
+    background: var(--surface);
 }
 
 [data-testid="stDivider"] {
