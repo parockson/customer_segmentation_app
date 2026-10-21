@@ -28,9 +28,25 @@ html, body, [class*="css"] {
     padding-bottom: 3rem;
 }
 
-[data-testid="stSidebar"],
-[data-testid="collapsedControl"] {
-    display: none !important;
+[data-testid="stSidebar"] {
+    background: #EDF3EE;
+    border-right: 1px solid var(--line);
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] h2 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.1rem;
+    color: var(--text);
+}
+
+[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {
+    color: var(--muted) !important;
+}
+
+[data-testid="stSidebar"] hr {
+    border-color: var(--line);
 }
 
 [data-testid="stMarkdownContainer"] h1 {

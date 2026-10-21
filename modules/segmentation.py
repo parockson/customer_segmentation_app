@@ -17,6 +17,8 @@ ALIAS_LAST_DATE  = {"lasttransaction", "lasttx", "lastsuccessdate"}
 ALIAS_FIRST_DATE = {"firsttransaction", "firsttx", "firstsuccessdate"}
 ALIAS_SEGMENT    = {"customersegment", "customertype"}
 ALIAS_CATEGORY   = {"category", "businesscategory", "productcategory"}
+ALIAS_SNAPSHOT_DATE = {"recorddate", "snapshotdate"}
+ALIAS_DAYS_SINCE = {"daysdifference", "dayssincelasttransaction", "dayssincelastsuccess"}
 
 
 def _normalise_key(col: str) -> str:
@@ -38,6 +40,8 @@ def load_data(filepath=None):
         TransactionDate  – LastTransaction  (lifecycle anchor)
         FirstTransaction – FirstTransaction
         LastTransaction  – LastTransaction
+        SnapshotDate     – RecordDate (workbook refresh date)
+        DaysSinceLastTransaction – Days Difference
         CustomerType     – CustomerSegment
         BusinessCategory – Category
         BizSegment       – tagged from sheet name (Retail / Corporate / SMB)
@@ -76,6 +80,10 @@ def load_data(filepath=None):
                 col_map[col] = "LastTransaction";   mapped.add("LastTransaction")
             elif key in ALIAS_FIRST_DATE and "FirstTransaction" not in mapped:
                 col_map[col] = "FirstTransaction";  mapped.add("FirstTransaction")
+            elif key in ALIAS_SNAPSHOT_DATE and "SnapshotDate" not in mapped:
+                col_map[col] = "SnapshotDate";      mapped.add("SnapshotDate")
+            elif key in ALIAS_DAYS_SINCE and "DaysSinceLastTransaction" not in mapped:
+                col_map[col] = "DaysSinceLastTransaction"; mapped.add("DaysSinceLastTransaction")
             elif key in ALIAS_SEGMENT and "CustomerType" not in mapped:
                 col_map[col] = "CustomerType";      mapped.add("CustomerType")
             elif key in ALIAS_CATEGORY and "BusinessCategory" not in mapped:
@@ -103,6 +111,12 @@ def load_data(filepath=None):
     if "FirstTransaction" in df.columns:
         df["FirstTransaction"] = pd.to_datetime(df["FirstTransaction"], errors="coerce")
         df.loc[df["FirstTransaction"].dt.year <= 1900, "FirstTransaction"] = pd.NaT
+    if "SnapshotDate" in df.columns:
+        df["SnapshotDate"] = pd.to_datetime(df["SnapshotDate"], errors="coerce")
+    if "DaysSinceLastTransaction" in df.columns:
+        df["DaysSinceLastTransaction"] = pd.to_numeric(
+            df["DaysSinceLastTransaction"], errors="coerce"
+        )
 
     # ── Cast remaining types ──────────────────────────────────────────────
     df["Amount"]     = pd.to_numeric(df["Amount"],  errors="coerce").fillna(0)
@@ -146,12 +160,18 @@ def compute_customer_lifecycle(df, snapshot_date=None):
     cust = df.copy()
 
     # ── Timing columns ────────────────────────────────────────────────────
-    cust["Days_Since_Last_Success"] = (
-        snapshot_date - cust["LastTransaction"]
-    ).dt.days
+    reference_date = snapshot_date
+    if "SnapshotDate" in cust.columns:
+        reference_date = cust["SnapshotDate"].fillna(snapshot_date)
+    calculated_recency = (reference_date - cust["LastTransaction"]).dt.days
+    if "DaysSinceLastTransaction" in cust.columns:
+        source_recency = pd.to_numeric(cust["DaysSinceLastTransaction"], errors="coerce")
+        cust["Days_Since_Last_Success"] = source_recency.fillna(calculated_recency)
+    else:
+        cust["Days_Since_Last_Success"] = calculated_recency
 
     if "FirstTransaction" in cust.columns:
-        cust["Tenure_Days"] = (snapshot_date - cust["FirstTransaction"]).dt.days
+        cust["Tenure_Days"] = (reference_date - cust["FirstTransaction"]).dt.days
     else:
         cust["Tenure_Days"] = cust["Days_Since_Last_Success"]
 

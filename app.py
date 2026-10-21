@@ -11,7 +11,7 @@ st.set_page_config(
     page_title="Customer Lifecycle Analytics",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 PROJECT_DIR = Path(__file__).resolve().parent
@@ -52,7 +52,10 @@ except Exception as error:
     st.stop()
 
 
-AS_OF = df["TransactionDate"].max()
+if "SnapshotDate" in df and df["SnapshotDate"].notna().any():
+    AS_OF = df["SnapshotDate"].max()
+else:
+    AS_OF = df["TransactionDate"].max()
 LIFECYCLE_ORDER = ["Active", "Inactive", "Dormant", "Churned", "Idle"]
 LIFECYCLE_COLORS = {
     "Active": "#64D6A5",
@@ -109,20 +112,18 @@ st.caption(
     f"· {len(df):,} records"
 )
 
-st.markdown("### Filters")
+st.sidebar.header("Filters")
 fallback_date = AS_OF.date()
 first_min, first_max = valid_date_bounds(df["FirstTransaction"], fallback_date)
 last_min, last_max = valid_date_bounds(df["LastTransaction"], fallback_date)
-filter_segment, filter_category, filter_type = st.columns([1, 1, 1])
 all_biz_segments = sorted(df["BizSegment"].dropna().unique().tolist())
-with filter_segment:
-    selected_biz_segments = st.multiselect(
-        "Business segment",
-        all_biz_segments,
-        default=[],
-        placeholder="All business segments",
-        key="main_biz_segment_v2",
-    )
+selected_biz_segments = st.sidebar.multiselect(
+    "Business segment",
+    all_biz_segments,
+    default=[],
+    placeholder="All business segments",
+    key="main_biz_segment_v2",
+)
 
 category_source = df[df["BizSegment"].isin(selected_biz_segments)] if selected_biz_segments else df
 category_options = sorted(category_source["BusinessCategory"].dropna().unique().tolist())
@@ -131,40 +132,35 @@ if "main_business_category_v2" in st.session_state:
         value for value in st.session_state["main_business_category_v2"] if value in category_options
     ]
 customer_type_options = sorted(df["CustomerType"].dropna().unique().tolist())
-with filter_category:
-    selected_categories = st.multiselect(
-        "Business category",
-        category_options,
-        default=[],
-        placeholder="All business categories",
-        key="main_business_category_v2",
-    )
-with filter_type:
-    selected_types = st.multiselect(
-        "Customer segment",
-        customer_type_options,
-        default=[],
-        placeholder="All customer segments",
-        key="main_customer_type_v2",
-    )
+selected_categories = st.sidebar.multiselect(
+    "Business category",
+    category_options,
+    default=[],
+    placeholder="All business categories",
+    key="main_business_category_v2",
+)
+selected_types = st.sidebar.multiselect(
+    "Customer segment",
+    customer_type_options,
+    default=[],
+    placeholder="All customer segments",
+    key="main_customer_type_v2",
+)
 
-filter_first_date, filter_last_date = st.columns(2)
-with filter_first_date:
-    first_date_range = st.date_input(
-        "First transaction date",
-        value=(first_min, first_max),
-        min_value=first_min,
-        max_value=first_max,
-        key="main_first_transaction_date",
-    )
-with filter_last_date:
-    last_date_range = st.date_input(
-        "Last transaction date",
-        value=(last_min, last_max),
-        min_value=last_min,
-        max_value=last_max,
-        key="main_last_transaction_date",
-    )
+first_date_range = st.sidebar.date_input(
+    "First transaction date",
+    value=(first_min, first_max),
+    min_value=first_min,
+    max_value=first_max,
+    key="main_first_transaction_date",
+)
+last_date_range = st.sidebar.date_input(
+    "Last transaction date",
+    value=(last_min, last_max),
+    min_value=last_min,
+    max_value=last_max,
+    key="main_last_transaction_date",
+)
 
 filtered_df = df
 if selected_biz_segments:
@@ -217,43 +213,32 @@ class_stats = pd.DataFrame(
         "Share": (class_counts / max(len(cust_df), 1) * 100).reindex(LIFECYCLE_ORDER).values,
     }
 )
-count_col, percent_col = st.columns(2)
-with count_col:
-    st.subheader("Records by lifecycle class")
-    count_fig = px.bar(
-        class_stats,
-        x="Records",
-        y="Lifecycle class",
-        orientation="h",
-        color="Lifecycle class",
-        color_discrete_map=LIFECYCLE_COLORS,
-        text="Records",
-        category_orders={"Lifecycle class": list(reversed(LIFECYCLE_ORDER))},
-    )
-    count_fig.update_traces(
-        texttemplate="%{text:,}",
-        textposition="inside",
-        insidetextanchor="end",
-        textfont_color="#F1F3EF",
-        showlegend=False,
-    )
-    chart_layout(count_fig, 300).update_layout(xaxis_title="Customers", yaxis_title="")
-    st.plotly_chart(count_fig, use_container_width=True)
-with percent_col:
-    st.subheader("Records by lifecycle class (%)")
-    percent_fig = px.bar(
-        class_stats,
-        x="Share",
-        y="Lifecycle class",
-        orientation="h",
-        color="Lifecycle class",
-        color_discrete_map=LIFECYCLE_COLORS,
-        text="Share",
-        category_orders={"Lifecycle class": list(reversed(LIFECYCLE_ORDER))},
-    )
-    percent_fig.update_traces(texttemplate="%{text:.1f}%", textposition="outside", cliponaxis=False, showlegend=False)
-    chart_layout(percent_fig, 300).update_layout(xaxis_title="Share of records (%)", yaxis_title="", xaxis_range=[0, class_stats["Share"].max() * 1.18 if class_stats["Share"].max() else 1])
-    st.plotly_chart(percent_fig, use_container_width=True)
+class_stats["Count and share"] = class_stats.apply(
+    lambda row: f"{row['Records']:,} ({row['Share']:.1f}%)", axis=1
+)
+st.subheader("Records by lifecycle class")
+count_fig = px.bar(
+    class_stats,
+    x="Records",
+    y="Lifecycle class",
+    orientation="h",
+    color="Lifecycle class",
+    color_discrete_map=LIFECYCLE_COLORS,
+    text="Count and share",
+    category_orders={"Lifecycle class": list(reversed(LIFECYCLE_ORDER))},
+)
+count_fig.update_traces(
+    textposition="outside",
+    cliponaxis=False,
+    textfont_color="#26352C",
+    showlegend=False,
+)
+chart_layout(count_fig, 320).update_layout(
+    xaxis_title="Customers",
+    yaxis_title="",
+    xaxis_range=[0, class_stats["Records"].max() * 1.28 if class_stats["Records"].max() else 1],
+)
+st.plotly_chart(count_fig, use_container_width=True)
 
 st.subheader("Lifecycle mix by business segment")
 segment_columns = st.columns(len(all_biz_segments))
@@ -313,7 +298,7 @@ with recency_col:
     st.plotly_chart(recency_fig, use_container_width=True)
 
 with trend_col:
-    st.subheader("First-transaction cohorts by quarter and year")
+    st.subheader("1st Trans cohorts by Quarter-year")
     cohort_source = cust_df.dropna(subset=["FirstTransaction"]).copy()
     if cohort_source.empty:
         st.info("No customers with a valid first transaction date match these filters.")
@@ -361,6 +346,14 @@ with trend_col:
                 dtick="M6",
             ),
             hovermode="x unified",
+            legend=dict(
+                orientation="h",
+                y=-0.3,
+                x=0.5,
+                xanchor="center",
+                yanchor="top",
+            ),
+            margin=dict(l=18, r=24, t=28, b=72),
         )
         st.plotly_chart(trend_fig, use_container_width=True)
         st.caption("Acquired counts use each customer's first-transaction quarter. Active and churned lines show each cohort's current status as of the latest transaction date in the workbook.")
@@ -437,31 +430,34 @@ else:
     new_client_counts["Quarter-year"] = new_client_counts["Quarter"].map(str)
     quarter_order = sorted(new_client_counts["Quarter"].unique())
     quarter_labels = [str(quarter) for quarter in quarter_order]
-    new_clients_fig = px.bar(
-        new_client_counts,
-        x="Quarter-year",
-        y="New clients",
-        color="BizSegment",
-        barmode="stack",
-        text_auto=".2s",
-        category_orders={"Quarter-year": quarter_labels},
-        color_discrete_sequence=["#4778A8", "#17845A", "#E5A43A", "#D65B54"],
-    )
-    chart_layout(new_clients_fig, 380).update_layout(
-        xaxis_title="First transaction quarter",
-        yaxis_title="New customers",
-        xaxis=dict(
-            showgrid=False,
-            zeroline=False,
-            tickfont=dict(color="#435248"),
-            title_font=dict(color="#26352C"),
-            tickangle=-45,
-            tickmode="array",
-            tickvals=quarter_labels[::2],
-            ticktext=quarter_labels[::2],
-        ),
-    )
-    st.plotly_chart(new_clients_fig, use_container_width=True)
+    business_segments = sorted(new_client_counts["BizSegment"].dropna().unique())
+    segment_colors = {segment: color for segment, color in zip(business_segments, ["#4778A8", "#17845A", "#E5A43A"])}
+    for business_segment in business_segments:
+        segment_counts = new_client_counts[new_client_counts["BizSegment"].eq(business_segment)]
+        st.markdown(f"**{business_segment}**")
+        new_clients_fig = px.bar(
+            segment_counts,
+            x="Quarter-year",
+            y="New clients",
+            text_auto=".2s",
+            category_orders={"Quarter-year": quarter_labels},
+            color_discrete_sequence=[segment_colors[business_segment]],
+        )
+        chart_layout(new_clients_fig, 380).update_layout(
+            xaxis_title="Quarter-year",
+            yaxis_title="New customers",
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                tickfont=dict(color="#435248"),
+                title_font=dict(color="#26352C"),
+                tickangle=-45,
+                tickmode="array",
+                tickvals=quarter_labels[::2],
+                ticktext=quarter_labels[::2],
+            ),
+        )
+        st.plotly_chart(new_clients_fig, use_container_width=True)
 
 st.divider()
 st.markdown("### Longest active customers by business segment")
@@ -472,19 +468,19 @@ longest_active["Rank"] = longest_active.groupby("BizSegment").cumcount() + 1
 longest_active = longest_active[longest_active["Rank"] <= 10]
 longest_columns = [
     "Rank", "CustomerID", "Name", "BizSegment", "FirstTransaction", "LastTransaction",
-    "Tenure (years)", "As of", "Success_Count", "Total_Value",
+    "Tenure (years)", "As of", "Total_Value",
 ]
 st.caption("Top 10 by tenure within each business segment.")
 st.dataframe(
     longest_active[longest_columns].rename(
-        columns={"Success_Count": "Total Volume", "Total_Value": "Total Value"}
+        columns={"Total_Value": "Total Value"}
     ),
     use_container_width=True,
     hide_index=True,
 )
 
 value_col, volume_col = st.columns(2)
-value_columns = ["Rank", "CustomerID", "Name", "BizSegment", "Success_Count", "Total_Value", "Lifecycle_Status"]
+value_columns = ["Rank", "CustomerID", "Name", "BizSegment", "Total_Value", "Lifecycle_Status"]
 with value_col:
     st.subheader("Top 5 customers by value · each business segment")
     top_value = cust_df.sort_values(["BizSegment", "Total_Value"], ascending=[True, False]).copy()
@@ -510,11 +506,13 @@ with volume_col:
         hide_index=True,
     )
 
-not_active = cust_df[~active_mask].nlargest(10, "Total_Value")
+not_active = cust_df[
+    ~active_mask & cust_df["Status"].eq("SUCCESS")
+].nlargest(10, "Total_Value")
 st.subheader("Top 10 customers who are not active")
 st.dataframe(
-    not_active[["CustomerID", "Name", "BizSegment", "Lifecycle_Status", "Days_Since_Last_Success", "Success_Count", "Total_Value", "LastTransaction"]].rename(
-        columns={"Lifecycle_Status": "Lifecycle", "Days_Since_Last_Success": "Days Since Last Transaction", "Success_Count": "Total Volume", "Total_Value": "Total Value"}
+    not_active[["CustomerID", "Name", "BizSegment", "Lifecycle_Status", "Days_Since_Last_Success", "Total_Value", "LastTransaction"]].rename(
+        columns={"Lifecycle_Status": "Lifecycle", "Days_Since_Last_Success": "Days Since Last Transaction", "Total_Value": "Total Value"}
     ),
     use_container_width=True,
     hide_index=True,
