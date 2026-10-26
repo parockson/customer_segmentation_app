@@ -216,7 +216,6 @@ if filtered_df.empty:
 # Derive lifecycle fields once for the filtered customers and prepare display
 # columns used by the metrics and tables below.
 cust_df = compute_customer_lifecycle(filtered_df, snapshot_date=AS_OF)
-cust_df = add_customer_names(cust_df)
 cust_df["Tenure (years)"] = (cust_df["Tenure_Days"].clip(lower=0) / 365.25).round(1)
 cust_df["As of"] = AS_OF.date()
 
@@ -506,6 +505,7 @@ longest_active = cust_df[active_mask].sort_values(
 ).copy()
 longest_active["Rank"] = longest_active.groupby("BizSegment").cumcount() + 1
 longest_active = longest_active[longest_active["Rank"] <= 10]
+longest_active = add_customer_names(longest_active)
 longest_columns = [
     "Rank", "CustomerID", "Name", "BizSegment", "FirstTransaction", "LastTransaction",
     "Tenure (years)", "As of", "Success_Count", "Total_Value",
@@ -529,6 +529,7 @@ with value_col:
     top_value = cust_df.sort_values(["BizSegment", "Total_Value"], ascending=[True, False]).copy()
     top_value["Rank"] = top_value.groupby("BizSegment").cumcount() + 1
     top_value = top_value[top_value["Rank"] <= 5]
+    top_value = add_customer_names(top_value)
     st.dataframe(
         top_value[value_columns].rename(
             columns={"Success_Count": "Total Volume", "Total_Value": "Total Value", "Lifecycle_Status": "Lifecycle"}
@@ -541,6 +542,7 @@ with volume_col:
     top_volume = cust_df.sort_values(["BizSegment", "Success_Count"], ascending=[True, False]).copy()
     top_volume["Rank"] = top_volume.groupby("BizSegment").cumcount() + 1
     top_volume = top_volume[top_volume["Rank"] <= 5]
+    top_volume = add_customer_names(top_volume)
     st.dataframe(
         top_volume[value_columns].rename(
             columns={"Success_Count": "Total Volume", "Total_Value": "Total Value", "Lifecycle_Status": "Lifecycle"}
@@ -553,6 +555,7 @@ with volume_col:
 not_active = cust_df[
     ~active_mask & cust_df["Status"].eq("SUCCESS")
 ].nlargest(10, "Total_Value")
+not_active = add_customer_names(not_active)
 st.subheader("Top 10 customers who are not active")
 st.dataframe(
     not_active[["CustomerID", "Name", "BizSegment", "Lifecycle_Status", "Days_Since_Last_Success", "Success_Count", "Total_Value", "LastTransaction"]].rename(
