@@ -139,6 +139,10 @@ def load_data(filepath=None):
             )
         df[col] = df[col].astype("string")
 
+    for col in ("Status", "name", "CustomerType", "BusinessCategory", "BizSegment"):
+        if col in df.columns:
+            df[col] = df[col].astype("category")
+
     return df
 
 

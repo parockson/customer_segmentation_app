@@ -1,3 +1,6 @@
+"""Streamlit dashboard for customer lifecycle and segment analytics."""
+
+# Dashboard dependencies and the shared data-processing functions.
 import pandas as pd
 import plotly.express as px
 import streamlit as st
@@ -7,6 +10,7 @@ from pathlib import Path
 from modules.segmentation import load_data, compute_customer_lifecycle
 
 
+# Configure the page before creating any Streamlit elements.
 st.set_page_config(
     page_title="Customer Lifecycle Analytics",
     page_icon="📊",
@@ -14,20 +18,25 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# Resolve project assets relative to this file so the app works from any cwd.
 PROJECT_DIR = Path(__file__).resolve().parent
 css_path = PROJECT_DIR / "assets" / "styles.css"
 if css_path.exists():
     st.markdown(f"<style>{css_path.read_text()}</style>", unsafe_allow_html=True)
 
 
+# The workbook is the dashboard's customer-level source of truth.
 DATA_PATH = PROJECT_DIR / "data" / "clients_dataset.xlsx"
 
 
-@st.cache_data
+@st.cache_resource
 def get_dataset(source_mtime_ns, source_size):
+    """Share the parsed workbook without serializing copies into the cache."""
     return load_data(str(DATA_PATH))
 
 
+# Include file metadata in the cache key so a replaced workbook is reloaded.
+# Report actionable guidance for missing data, unreadable files, and LFS pointers.
 try:
     source_stat = DATA_PATH.stat()
     df = get_dataset(source_stat.st_mtime_ns, source_stat.st_size)
@@ -52,6 +61,7 @@ except Exception as error:
     st.stop()
 
 
+# Prefer the workbook refresh date; older workbooks fall back to transaction data.
 if "SnapshotDate" in df and df["SnapshotDate"].notna().any():
     AS_OF = df["SnapshotDate"].max()
 else:
@@ -67,6 +77,7 @@ LIFECYCLE_COLORS = {
 
 
 def valid_date_bounds(series, fallback):
+    """Return usable date limits, ignoring invalid and placeholder dates."""
     dates = pd.to_datetime(series, errors="coerce").dropna()
     dates = dates[dates.dt.year > 1900]
     if dates.empty:
@@ -75,6 +86,7 @@ def valid_date_bounds(series, fallback):
 
 
 def format_currency(value):
+    """Format large totals with compact suffixes and smaller totals as dollars."""
     if value >= 1_000_000_000_000:
         return f"${value / 1_000_000_000_000:.2f}T"
     if value >= 1_000_000:
@@ -85,6 +97,7 @@ def format_currency(value):
 
 
 def chart_layout(fig, height=330):
+    """Apply the dashboard's shared chart colors, typography, and spacing."""
     fig.update_layout(
         height=height,
         paper_bgcolor="rgba(0,0,0,0)",
@@ -99,12 +112,17 @@ def chart_layout(fig, height=330):
 
 
 def add_customer_names(frame):
+    """Expose an optional source name column under one dashboard column name."""
     result = frame.copy()
     name_column = next((column for column in ("CustomerName", "name", "Name") if column in result), None)
-    result["Name"] = result[name_column].fillna("").astype(str) if name_column else ""
+    if name_column and isinstance(result[name_column].dtype, pd.CategoricalDtype):
+        result["Name"] = result[name_column].astype("string[pyarrow]").fillna("")
+    else:
+        result["Name"] = result[name_column].fillna("").astype(str) if name_column else ""
     return result
 
 
+# Introduce the dashboard and show the workbook refresh time and row count.
 st.markdown("# Customer Lifecycle")
 st.markdown("Customer health, recency, retention opportunities, and segment performance")
 st.caption(
@@ -112,6 +130,7 @@ st.caption(
     f"· {len(df):,} records"
 )
 
+# Build sidebar options and date limits from the loaded workbook.
 st.sidebar.header("Filters")
 fallback_date = AS_OF.date()
 first_min, first_max = valid_date_bounds(df["FirstTransaction"], fallback_date)
@@ -125,6 +144,8 @@ selected_biz_segments = st.sidebar.multiselect(
     key="main_biz_segment_v2",
 )
 
+# Limit category choices to the selected business segment(s), and discard stale
+# category widget values if a segment change makes them unavailable.
 category_source = df[df["BizSegment"].isin(selected_biz_segments)] if selected_biz_segments else df
 category_options = sorted(category_source["BusinessCategory"].dropna().unique().tolist())
 if "main_business_category_v2" in st.session_state:
@@ -162,6 +183,8 @@ last_date_range = st.sidebar.date_input(
     key="main_last_transaction_date",
 )
 
+# Apply all selected filters while retaining records with missing transaction
+# dates when the user filters by date.
 filtered_df = df
 if selected_biz_segments:
     filtered_df = filtered_df[filtered_df["BizSegment"].isin(selected_biz_segments)]
@@ -185,15 +208,19 @@ if len(last_date_range) == 2:
         | filtered_df["LastTransaction"].between(last_start, last_end)
     ]
 
+# Stop early rather than rendering misleading empty charts and totals.
 if filtered_df.empty:
     st.info("No customer records match these filters. Adjust the selections above.")
     st.stop()
 
+# Derive lifecycle fields once for the filtered customers and prepare display
+# columns used by the metrics and tables below.
 cust_df = compute_customer_lifecycle(filtered_df, snapshot_date=AS_OF)
 cust_df = add_customer_names(cust_df)
 cust_df["Tenure (years)"] = (cust_df["Tenure_Days"].clip(lower=0) / 365.25).round(1)
 cust_df["As of"] = AS_OF.date()
 
+# Summarize customer counts, transaction volume, and value for the selection.
 st.markdown("### Customer totals")
 active_mask = cust_df["Lifecycle_Status"].eq("Active")
 total_revenue = cust_df["Total_Value"].sum()
@@ -205,6 +232,7 @@ total_cards[2].metric("Not active", f"{(~active_mask).sum():,}")
 total_cards[3].metric("Total volume", f"{total_volume:,.0f}")
 total_cards[4].metric("Total value", format_currency(total_revenue))
 
+# Count each lifecycle class and calculate its share of the filtered customers.
 class_counts = cust_df["Lifecycle_Status"].value_counts().reindex(LIFECYCLE_ORDER, fill_value=0)
 class_stats = pd.DataFrame(
     {
@@ -240,6 +268,7 @@ chart_layout(count_fig, 320).update_layout(
 )
 st.plotly_chart(count_fig, use_container_width=True)
 
+# Compare the lifecycle distribution separately for each business segment.
 st.subheader("Lifecycle mix by business segment")
 segment_columns = st.columns(len(all_biz_segments))
 for segment_column, business_segment in zip(segment_columns, all_biz_segments):
@@ -281,11 +310,13 @@ for segment_column, business_segment in zip(segment_columns, all_biz_segments):
         )
         st.plotly_chart(segment_fig, use_container_width=True)
 
+# Show customer recency bands alongside acquisition-quarter cohort outcomes.
 st.divider()
 recency_col, trend_col = st.columns(2)
 with recency_col:
     st.subheader("Customer recency")
     recency_days = cust_df["Days_Since_Last_Success"]
+    # Use explicit bins so the chart includes empty ranges and missing dates.
     recency_bins = [-float("inf"), 30, 60, 90, 180, 365, float("inf")]
     recency_labels = ["0–30 days", "31–60 days", "61–90 days", "91–180 days", "181–365 days", "366+ days"]
     recency_order = recency_labels + ["No date"]
@@ -303,6 +334,8 @@ with trend_col:
     if cohort_source.empty:
         st.info("No customers with a valid first transaction date match these filters.")
     else:
+        # Count unique acquisitions per quarter and current lifecycle outcomes
+        # for those same customers.
         cohort_source["CohortQuarter"] = cohort_source["FirstTransaction"].dt.to_period("Q").dt.start_time
         cohort_source["CurrentlyActive"] = cohort_source["Lifecycle_Status"].eq("Active").astype(int)
         cohort_source["CurrentlyChurned"] = cohort_source["Lifecycle_Status"].eq("Churned").astype(int)
@@ -358,7 +391,10 @@ with trend_col:
         st.plotly_chart(trend_fig, use_container_width=True)
         st.caption("Acquired counts use each customer's first-transaction quarter. Active and churned lines show each cohort's current status as of the latest transaction date in the workbook.")
 
+# Compare idle customers by acquisition year with churn by estimated churn year.
 st.subheader("Idle and churned customers by year")
+# Exclude never-transacted customers from the idle-by-year chart because they
+# have no valid first-transaction year to group by.
 idle_customers = cust_df[
     cust_df["Lifecycle_Status"].eq("Idle")
     & cust_df["Status"].ne("NEVER TRANSACTED")
@@ -372,6 +408,7 @@ idle_customers = idle_customers.dropna(subset=["FirstTransaction"])
 idle_customers["Year"] = idle_customers["FirstTransaction"].dt.year
 idle_by_year = idle_customers.groupby("Year", observed=True).size().rename("Idle").to_frame()
 
+# Estimate a customer's churn year as one year after their last transaction.
 churned_customers = cust_df[
     cust_df["Lifecycle_Status"].eq("Churned") & cust_df["LastTransaction"].notna()
 ].copy()
@@ -416,6 +453,7 @@ with churn_chart_col:
 
 st.caption("Idle year counts exclude Never Transacted records, which have no first-transaction date. Churn year is estimated as 365 days after the last recorded transaction.")
 
+# Count unique new customers by first-transaction quarter and business segment.
 st.subheader("New clients by quarter and year")
 new_clients = cust_df.dropna(subset=["FirstTransaction"]).copy()
 if new_clients.empty:
@@ -431,6 +469,7 @@ else:
     quarter_order = sorted(new_client_counts["Quarter"].unique())
     quarter_labels = [str(quarter) for quarter in quarter_order]
     business_segments = sorted(new_client_counts["BizSegment"].dropna().unique())
+    # Reuse a stable palette when drawing one quarterly chart per segment.
     segment_colors = {segment: color for segment, color in zip(business_segments, ["#4778A8", "#17845A", "#E5A43A"])}
     for business_segment in business_segments:
         segment_counts = new_client_counts[new_client_counts["BizSegment"].eq(business_segment)]
@@ -459,6 +498,7 @@ else:
         )
         st.plotly_chart(new_clients_fig, use_container_width=True)
 
+# List the longest-tenured active customers, ranking separately by segment.
 st.divider()
 st.markdown("### Longest active customers by business segment")
 longest_active = cust_df[active_mask].sort_values(
@@ -468,19 +508,22 @@ longest_active["Rank"] = longest_active.groupby("BizSegment").cumcount() + 1
 longest_active = longest_active[longest_active["Rank"] <= 10]
 longest_columns = [
     "Rank", "CustomerID", "Name", "BizSegment", "FirstTransaction", "LastTransaction",
-    "Tenure (years)", "As of", "Total_Value",
+    "Tenure (years)", "As of", "Success_Count", "Total_Value",
 ]
 st.caption("Top 10 by tenure within each business segment.")
 st.dataframe(
     longest_active[longest_columns].rename(
-        columns={"Total_Value": "Total Value"}
+        columns={"Success_Count": "Total Volume", "Total_Value": "Total Value"}
     ),
     use_container_width=True,
     hide_index=True,
 )
 
+# Show value and volume leaders in separate tables, each ranked per segment.
 value_col, volume_col = st.columns(2)
-value_columns = ["Rank", "CustomerID", "Name", "BizSegment", "Total_Value", "Lifecycle_Status"]
+value_columns = [
+    "Rank", "CustomerID", "Name", "BizSegment", "Success_Count", "Total_Value", "Lifecycle_Status"
+]
 with value_col:
     st.subheader("Top 5 customers by value · each business segment")
     top_value = cust_df.sort_values(["BizSegment", "Total_Value"], ascending=[True, False]).copy()
@@ -506,13 +549,14 @@ with volume_col:
         hide_index=True,
     )
 
+# Highlight the highest-value successful customers who are not currently active.
 not_active = cust_df[
     ~active_mask & cust_df["Status"].eq("SUCCESS")
 ].nlargest(10, "Total_Value")
 st.subheader("Top 10 customers who are not active")
 st.dataframe(
-    not_active[["CustomerID", "Name", "BizSegment", "Lifecycle_Status", "Days_Since_Last_Success", "Total_Value", "LastTransaction"]].rename(
-        columns={"Lifecycle_Status": "Lifecycle", "Days_Since_Last_Success": "Days Since Last Transaction", "Total_Value": "Total Value"}
+    not_active[["CustomerID", "Name", "BizSegment", "Lifecycle_Status", "Days_Since_Last_Success", "Success_Count", "Total_Value", "LastTransaction"]].rename(
+        columns={"Lifecycle_Status": "Lifecycle", "Days_Since_Last_Success": "Days Since Last Transaction", "Success_Count": "Total Volume", "Total_Value": "Total Value"}
     ),
     use_container_width=True,
     hide_index=True,
