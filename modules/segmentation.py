@@ -56,7 +56,7 @@ def load_data(filepath=None):
                     f"{filepath} is a Git LFS pointer, not the workbook. Run `git lfs pull` in the repository."
                 )
 
-    excel_file = pd.ExcelFile(filepath)
+    excel_file = pd.ExcelFile(filepath, engine="calamine")
 
     segment_dfs = []
     for sheet in excel_file.sheet_names:
